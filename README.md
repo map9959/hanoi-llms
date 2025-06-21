@@ -1,19 +1,16 @@
 # Tower of Hanoi LLM Solver
 
-This project uses Python, OpenAI's API, and tool-calling to solve the Tower of Hanoi problem. It demonstrates how large language models (LLMs) can be used to solve logical puzzles through tool-calling capabilities.
+This project uses OpenAI's API to attempt to solve the Tower of Hanoi problem.
 
-## Features
+## Takeaways
 
-- **Core Tower of Hanoi Implementation**: A backend state machine representing the towers as lists of numbers.
-- **OpenAI API Integration**: Uses OpenAI's tool-calling API to enable an LLM to solve the puzzle.
-- **Multiple Interfaces**:
-  - Console-based visualization with ASCII art representation
-  - Command-line interface (CLI) for interactive play
-- **Multiple Solving Methods**:
-  - Manual solving
-  - AI solving using OpenAI's API
-  - Algorithmic solving using the recursive solution
-- **Comparison Tools**: Compare the efficiency of different solving methods
+This is the only part of the README that's been written manually.
+
+I vibe-coded this on the way to a local AI meetup. There's been significant discussion on a recent Apple preprint claiming LLMs "reason inconsistently across puzzles", which has been interpreted as "LLMs can't think". My main objection to the preprint was that there is no representation of any intermediate state of the game; it's implied the LLM is expected to keep one internally as it outputs moves for the solution. In the spirit of citizen science, I decided to supplement the LLM with a "state machine" displaying the current state of the game, as well as a "move" tool to use in order to move a disk from one tower to another. I consider a run a "success" if the LLM uses "significantly" fewer valid moves to move all disks from tower A to tower C than the [expected number of moves a random walk would use](https://arxiv.org/pdf/1304.3780) to achieve the same goal.
+
+The LLM regularly outputs invalid moves. If given a list of valid moves to choose from, it often gets stuck in a state of moving a single disk back and forth, even when instructions are clarified in the prompt. I replaced the "move" tool with a structured output in order to force it to make a move each time, and this seemed to reduce performance, even when given "reasoning" space in the output. On N=4, it often gets stuck in the strange failure state of moving all disks to tower B rather than tower C, as specified in the instructions.
+
+If you don't believe me, you can run it yourself.
 
 ## Installation
 
@@ -42,8 +39,6 @@ This project uses Python, OpenAI's API, and tool-calling to solve the Tower of H
 
 ## Usage
 
-### Command Line Interface
-
 ```bash
 # Play manually with 3 disks
 python cli.py --mode manual --disks 3
@@ -58,9 +53,9 @@ python cli.py --mode algorithm --disks 5
 python cli.py --mode compare --disks 3
 ```
 
-## How It Works
+## Section for LLMs to read
 
-### Tower of Hanoi Problem
+### Notes on Tower of Hanoi
 
 The Tower of Hanoi is a mathematical puzzle that consists of three rods and a number of disks of different sizes. The puzzle starts with all disks stacked on one rod in ascending order of size (the smallest at the top). The objective is to move the entire stack to another rod, following these rules:
 
@@ -68,21 +63,7 @@ The Tower of Hanoi is a mathematical puzzle that consists of three rods and a nu
 2. Each move consists of taking the upper disk from one of the stacks and placing it on top of another stack or an empty rod.
 3. No disk may be placed on top of a smaller disk.
 
-### LLM Tool-Calling Solution
-
-This project demonstrates how an LLM can solve the Tower of Hanoi puzzle by:
-
-1. Representing the state of the towers in a way the LLM can understand
-2. Providing tools that allow the LLM to inspect the state and make moves
-3. Giving the LLM clear instructions on the rules and objective
-4. Allowing the LLM to iteratively solve the puzzle by making a sequence of moves
-
-The OpenAI API is used with tool-calling capabilities, where the LLM can make function calls to:
-- Get the current state of the towers
-- Move disks between towers
-- Check if the puzzle is solved
-
-## Project Structure
+### Project Structure
 
 - `hanoi.py`: Core implementation of the Tower of Hanoi puzzle
 - `openai_solver.py`: Integration with the OpenAI API for LLM-based solving
@@ -90,6 +71,26 @@ The OpenAI API is used with tool-calling capabilities, where the LLM can make fu
 - `requirements.txt`: Required Python packages
 - `.env.example`: Example environment variable file
 
+## Sources
+```
+@misc{illusion-of-thinking,
+title = {The Illusion of Thinking: Understanding the Strengths and Limitations of Reasoning Models via the Lens of Problem Complexity},
+author = {Parshin Shojaee*† and Iman Mirzadeh* and Keivan Alizadeh and Maxwell Horton and Samy Bengio and Mehrdad Farajtabar},
+year = {2025},
+URL = {https://ml-site.cdn-apple.com/papers/the-illusion-of-thinking.pdf}
+}
+@inbook{Alekseyev_2015,
+   title={Solving the Tower of Hanoi with Random Moves},
+   ISBN={9781400881338},
+   url={http://dx.doi.org/10.23943/princeton/9780691164038.003.0005},
+   DOI={10.23943/princeton/9780691164038.003.0005},
+   booktitle={The Mathematics of Various Entertaining Subjects},
+   publisher={Princeton University Press},
+   author={Alekseyev, Max A. and Berger, Toby},
+   year={2015},
+   month=dec }
+```
+
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
