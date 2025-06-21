@@ -101,7 +101,6 @@ def compare_methods(num_disks, model="gpt-4.1-mini", max_iterations=100):
     print(f"Optimal solution requires {optimal_moves} moves.\n")
     
     # Algorithm solution
-    algorithm_game = TowerOfHanoi(num_disks)
     moves = get_optimal_moves(num_disks)
     algorithm_moves = len(moves)
     print(f"Algorithm solution: {algorithm_moves} moves (optimal)\n")

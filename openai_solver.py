@@ -7,6 +7,8 @@ puzzle using tool-calling capabilities.
 
 import os
 import json
+from pydantic import BaseModel, Field
+from typing import Literal
 from dotenv import load_dotenv
 from openai import OpenAI
 from hanoi import TowerOfHanoi
@@ -17,41 +19,13 @@ load_dotenv()
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Define the tools that can be used by the model
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "move_disk",
-            "description": "Move a disk from one tower to another in the Tower of Hanoi puzzle",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "source": {
-                        "type": "string",
-                        "description": "The source tower (A, B, or C)"
-                    },
-                    "target": {
-                        "type": "string",
-                        "description": "The target tower (A, B, or C)"
-                    }
-                },
-                "required": ["source", "target"]
-            }
-        }
-    },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "is_puzzle_solved",
-    #         "description": "Check if the Tower of Hanoi puzzle is solved",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {}
-    #         }
-    #     }
-    # }
-]
+class TowerOfHanoiMove(BaseModel):
+    """A move in the Tower of Hanoi puzzle"""
+    
+    #reasoning: str = Field(description="Think about what move to make next and whether it's valid")
+    source: Literal["A", "B", "C"] = Field(description="Tower to move the top disk from (A, B, or C)")
+    target: Literal["A", "B", "C"] = Field(description="Tower to move the top disk to (A, B, or C)")
+    
 
 
 class OpenAIHanoiSolver:
@@ -77,18 +51,12 @@ class OpenAIHanoiSolver:
                 "role": "system",
                 "content": f"""
                     You are an expert at solving the Tower of Hanoi puzzle. 
-                    Your task is to solve a {self.game.num_disks}-disk Tower of Hanoi puzzle by moving disks from Tower A to Tower C.
+                    Your task is to solve a {self.game.num_disks}-disk Tower of Hanoi puzzle by moving all disks from Tower A to Tower C.
 
                     Remember the rules:
                     1. Only one disk can be moved at a time
-                    2. Each move consists of taking the upper disk from one of the stacks and placing it on top of another stack or an empty rod
+                    2. Each move consists of taking the top disk from one of the stacks and placing it on top of another stack or an empty rod
                     3. Bigger disk can't be placed on top of a smaller disk
-
-                    You can use the following tools:
-                    - move_disk: Move a disk from one tower to another
-                    - is_puzzle_solved: Check if the puzzle is solved
-
-                    Please solve the puzzle as quick as possible. If the minimum number of moves is already surpassed, proceed anyway.
                 """
             }
         ]
@@ -103,7 +71,6 @@ class OpenAIHanoiSolver:
             str: A formatted string representation of the state
         """
         description = []
-        description.append(f"Moves so far: {state['moves']}")
         
         for tower in ['A', 'B', 'C']:
             disks = state[tower]
@@ -115,38 +82,30 @@ class OpenAIHanoiSolver:
                 
         return "\n".join(description)
     
-    def _handle_tool_call(self, tool_call):
-        """Handle a tool call from the assistant.
+    def _handle_move(self, move: TowerOfHanoiMove):
+        """Handle a move parsed from the assistant's response.
         
         Args:
-            tool_call (dict): The tool call from the assistant
+            move (TowerOfHanoiMove): The move to be executed
             
         Returns:
-            str: The result of the tool call
+            bool: True if the move was successful, False otherwise
         """
-        function_name = tool_call.function.name
-        function_args = json.loads(tool_call.function.arguments)
+        source = move.source
+        target = move.target
         
-        if function_name == "move_disk":
-            source = function_args.get("source")
-            target = function_args.get("target")
-            success = self.game.move(source, target)
+        if self.verbose:
+            print(f"Assistant suggests moving disk from {source} to {target}")
             
-            if success:
-                result = f"Successfully moved disk from {source} to {target}"
-                if self.verbose:
-                    self.game.display()
-            else:
-                result = f"Invalid move: Cannot move disk from {source} to {target}"
-                
-            return result
+        success = self.game.move(source, target)
         
+        if not success and self.verbose:
+            print(f"Invalid move: Cannot move disk from {source} to {target}")
+
+        if success:
+            self.game.display()
             
-        elif function_name == "is_puzzle_solved":
-            solved = self.game.is_solved()
-            return json.dumps({"solved": solved})
-            
-        return "Unknown function"
+        return success
     
     def solve(self, max_iterations=100):
         """Solve the Tower of Hanoi puzzle using the OpenAI API.
@@ -179,39 +138,31 @@ class OpenAIHanoiSolver:
             # Add a user message with the current state
             self.messages.append({
                 "role": "user",
-                "content": f"Current state of the towers:\n{state_description}\n\nPlease make the next move to solve the puzzle."
+                "content": f"Current state of the towers:\n\n{state_description}\n\nPlease make the next move to solve the puzzle."
             })
                 
             # Get response from OpenAI
-            response = client.chat.completions.create(
+            response = client.responses.parse(
                 model=self.model,
-                messages=self.messages,
-                tools=TOOLS,
-                tool_choice="auto"
+                input=self.messages,
+                text_format=TowerOfHanoiMove,
             )
             
-            assistant_message = response.choices[0].message
-            self.messages.append(assistant_message)
-            
-            # Check if the assistant wants to use tools
-            if not assistant_message.tool_calls:
-                if self.verbose:
-                    print(f"Assistant message: {assistant_message.content}")
+            move = response.output_parsed
+            if move is None:
                 continue
-                
-            # Handle each tool call
-            for tool_call in assistant_message.tool_calls:
-                if self.verbose:
-                    print(f"Tool call: {tool_call.function.name} with arguments {tool_call.function.arguments}")
-                    
-                result = self._handle_tool_call(tool_call)
-                
-                # Add the tool response to messages
+
+            self.messages.append({
+                "role": "assistant",
+                "content": f'Moving top disk of {move.source} to {move.target}'
+            })
+            if not self.game.is_valid_move(move.source, move.target):
                 self.messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": result
+                    "role": "user",
+                    "content": f'Invalid move: Cannot move disk from {move.source} to {move.target}. Please suggest a valid move.'
                 })
+
+            self._handle_move(move)
                 
             # Check if the puzzle is solved
             if self.game.is_solved():

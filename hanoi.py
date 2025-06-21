@@ -7,6 +7,10 @@ This module contains the core functionality for:
 - Displaying the current state in the console
 """
 
+from typing import List, Tuple, Dict, Literal
+
+Tower = Literal['A', 'B', 'C']
+
 class TowerOfHanoi:
     def __init__(self, num_disks=3):
         """Initialize the Tower of Hanoi with a given number of disks.
@@ -24,12 +28,12 @@ class TowerOfHanoi:
         }
         self.moves = 0
         
-    def is_valid_move(self, source, target):
+    def is_valid_move(self, source: Tower, target: Tower) -> bool:
         """Check if a move from source tower to target tower is valid.
         
         Args:
-            source (str): The source tower ('A', 'B', or 'C')
-            target (str): The target tower ('A', 'B', or 'C')
+            source (Tower): The source tower ('A', 'B', or 'C')
+            target (Tower): The target tower ('A', 'B', or 'C')
             
         Returns:
             bool: True if the move is valid, False otherwise
@@ -49,12 +53,12 @@ class TowerOfHanoi:
             
         return True
     
-    def move(self, source, target):
+    def move(self, source: Tower, target: Tower) -> bool:
         """Move the top disk from source tower to target tower if valid.
         
         Args:
-            source (str): The source tower ('A', 'B', or 'C')
-            target (str): The target tower ('A', 'B', or 'C')
+            source (Tower): The source tower ('A', 'B', or 'C')
+            target (Tower): The target tower ('A', 'B', or 'C')
             
         Returns:
             bool: True if the move was successful, False otherwise
@@ -69,7 +73,7 @@ class TowerOfHanoi:
             
         return False
     
-    def is_solved(self):
+    def is_solved(self) -> bool:
         """Check if the puzzle is solved (all disks are on tower C).
         
         Returns:
@@ -90,13 +94,34 @@ class TowerOfHanoi:
             'moves': self.moves
         }
     
-    def display(self):
-        """Display the current state of the towers in the console."""
-        print("\n" + "=" * 40)
-        print(f"Tower of Hanoi - {self.num_disks} disks - Moves: {self.moves}")
-        print("=" * 40)
+    def get_valid_moves(self):
+        """Get a list of all valid moves from the current state.
         
-        # Find the maximum height of any tower
+        Returns:
+            list: A list of tuples representing valid moves in the format (source, target)
+        """
+        valid_moves = []
+        for source in self.towers:
+            for target in self.towers:
+                if source != target and self.is_valid_move(source, target):
+                    valid_moves.append(f'source: {source}, target: {target}')
+        return valid_moves
+    
+    def display(self) -> None:
+        """Display the current state of the towers in the console."""
+        print(self.display_str())
+
+    def display_str(self) -> str:
+        """Get a string visual representation of the current state of the towers.
+        
+        Returns:
+            str: A formatted string representing the current state
+        """
+        lines = []
+        lines.append("\n" + "=" * 40)
+        lines.append(f"Tower of Hanoi - {self.num_disks} disks - Moves: {self.moves}")
+        lines.append("=" * 40)
+        
         max_height = self.num_disks
         
         # Display the towers row by row, from top to bottom
@@ -106,34 +131,39 @@ class TowerOfHanoi:
                 if len(self.towers[tower]) >= height:
                     disk = self.towers[tower][-height]
                     disk_str = '█' * ((disk-1) * 2) + '█'
-                    # Pad with spaces to ensure alignment
                     padding = self.num_disks - (disk-1)
                     row.append(' ' * padding + disk_str + ' ' * padding)
                 else:
-                    # Empty space with pole indicator
                     row.append(' ' * self.num_disks + '|' + ' ' * self.num_disks)
-            print("  ".join(row))
-            
+            lines.append("  ".join(row))
+        
         # Display tower bases
         bases = []
         for _ in ['A', 'B', 'C']:
             base = '▀' * (self.num_disks * 2 + 1)
             bases.append(base)
-        print("  ".join(bases))
+        lines.append("  ".join(bases))
         
         # Display tower labels
         labels = []
         for tower in ['A', 'B', 'C']:
             label = ' ' * self.num_disks + tower + ' ' * self.num_disks
             labels.append(label)
-        print("  ".join(labels))
-        print("\n")
+        lines.append("  ".join(labels))
+        lines.append("\n")
+        return "\n".join(lines)
+        
     
     def reset(self):
         """Reset the puzzle to its initial state."""
         self.__init__(self.num_disks)
         
-    def solve_recursive(self, n=None, source='A', auxiliary='B', target='C'):
+    def solve_recursive(
+            self,
+            n: int | None = None,
+            source: Tower = 'A',
+            auxiliary: Tower = 'B',
+            target: Tower = 'C'):
         """Recursive solution for Tower of Hanoi puzzle.
         
         Args:
@@ -161,7 +191,7 @@ class TowerOfHanoi:
         return moves
 
 
-def get_optimal_moves(num_disks):
+def get_optimal_moves(num_disks: int) -> List[Tuple[Tower, Tower]]:
     """Get the optimal sequence of moves for solving Tower of Hanoi.
     
     Args:
